@@ -1,0 +1,6 @@
+window.BEING_ADMIN_CONFIG = {
+  VOICE_API_URL: "PASTE_URL_WEB_APP_BEING_VOICE_DI_SINI",
+  BANGDIR_API_URL: "PASTE_URL_WEB_APP_ADMINBEING_DI_SINI",
+  PUBLIC_BANGDIR_URL: "https://bangdir.beingpsikologi.com/",
+  PUBLIC_VOICE_URL: "suara-anda.html"
+};
