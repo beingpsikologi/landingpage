@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BEING Admin Terpadu v5.4</title>
+<style>
+:root{--g:#15594c;--g2:#0f493e;--bg:#f3f7f5;--line:#dce8e2;--mut:#6d7b76;--danger:#a73535}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:#18352d}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(430px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:0 20px 60px #153d3215}
+.login-card h1{margin:8px 0 6px;color:var(--g)}.mut{color:var(--mut)}.field{margin:12px 0}.field label{display:block;font-weight:700;margin-bottom:6px}
+.control{width:100%;padding:12px;border:1px solid #cbdad4;border-radius:12px;font:inherit;background:#fff}.btn{border:0;border-radius:11px;padding:10px 14px;background:var(--g);color:white;font-weight:700;cursor:pointer}.btn.secondary{background:#edf5f1;color:var(--g);border:1px solid #d0e1da}.btn.danger{background:#fff1f1;color:var(--danger);border:1px solid #efcaca}.btn.small{padding:7px 10px;font-size:12px}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}.side{background:#0e493e;color:#fff;padding:18px;position:sticky;top:0;height:100vh;overflow:auto}.brand{font-size:18px;font-weight:800;margin:10px 8px 24px}.menu button{width:100%;text-align:left;background:transparent;color:#fff;border:0;padding:12px;border-radius:10px;font-weight:700;cursor:pointer}.menu button.active,.menu button:hover{background:#fff;color:var(--g)}.group{font-size:11px;letter-spacing:.12em;opacity:.65;margin:20px 10px 6px}
+.main{padding:26px;min-width:0}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:18px}.top h1{margin:0;color:var(--g)}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}.stat b{display:block;font-size:28px;color:var(--g)}
+.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:10px;border-bottom:1px solid #e9efec;text-align:left;vertical-align:top}.actions{display:flex;gap:7px;flex-wrap:wrap}
+.notice{padding:11px;border-radius:10px;background:#edf5f1;margin:10px 0}.notice.error{background:#fff0f0;color:#a62e2e}.badge{display:inline-block;padding:4px 8px;background:#edf5f1;border-radius:999px;font-size:11px;font-weight:700}
+.modal{position:fixed;inset:0;background:#0007;display:none;place-items:center;padding:20px;z-index:20}.modal.open{display:grid}.modal-card{background:#fff;max-width:700px;width:100%;max-height:90vh;overflow:auto;border-radius:20px;padding:20px}
+.chart-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}.bar-row{display:grid;grid-template-columns:minmax(100px,180px) 1fr 44px;gap:10px;align-items:center;margin:8px 0}.bar-track{height:12px;background:#edf2ef;border-radius:999px;overflow:hidden}.bar-fill{height:100%;background:var(--g);border-radius:999px}
+@media(max-width:850px){.shell{grid-template-columns:1fr}.side{position:relative;height:auto}.grid2,.stats{grid-template-columns:1fr}.main{padding:14px}.bar-row{grid-template-columns:90px 1fr 36px}}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+ <form id="loginForm" class="login-card">
+  <div class="mut">BEING ADMIN TERPADU • v5.4 NATIVE</div>
+  <h1>Satu pintu pengelolaan</h1>
+  <p class="mut">Tanpa fetch, tanpa JSONP, tanpa API silang browser.</p>
+  <div class="field"><label>PIN Admin</label><input id="pin" class="control" type="password" required></div>
+  <div id="loginNotice"></div>
+  <button class="btn" style="width:100%">Masuk</button>
+ </form>
+</div>
+
+<div id="app" class="shell hidden">
+ <aside class="side">
+  <div class="brand">BEING Admin v5.4</div>
+  <div class="menu">
+   <div class="group">UTAMA</div>
+   <button class="active" data-panel="dashboard">Dashboard</button><button data-panel="contacts">Database Kontak</button>
+   <div class="group">PENGEMBANGAN DIRI</div>
+   <button data-panel="programs">Program & Peserta</button><button data-panel="payments">Pembayaran</button><button data-panel="materials">Materi & Sesi</button>
+   <div class="group">FORMULIR</div>
+   <button data-panel="forms">Formulir</button>
+   <button data-panel="questions">Pertanyaan</button>
+   <button data-panel="analytics">Respons & Analitik</button>
+   <div class="group">SISTEM</div>
+   <button id="refresh">Refresh</button><button id="logout">Keluar</button>
+  </div>
+ </aside>
+ <main class="main">
+  <header class="top"><div><div class="mut">BEING Biro Psikologi</div><h1 id="title">Dashboard</h1></div><a class="btn secondary" href="https://beingpsikologi.com" target="_blank">Website BEING</a></header>
+  <div id="notice"></div>
+
+  <section id="p-dashboard" class="panel active"><div class="actions" style="margin-bottom:12px"><button class="btn secondary" id="auditOperationalBtn">Audit Operasional</button><button class="btn secondary" id="exportParticipants">Unduh CSV Peserta</button><button class="btn secondary" id="exportPayments">Unduh CSV Pembayaran</button></div><div id="stats" class="stats"></div><div class="grid2"><div class="card"><h2>Program</h2><div id="dashPrograms"></div></div><div class="card"><h2>Formulir</h2><div id="dashForms"></div></div></div></section>
+
+  <section id="p-contacts" class="panel">
+   <div class="stats" id="contactStats"></div>
+   <div class="card">
+    <div class="actions" style="margin-bottom:12px">
+     <button class="btn secondary" id="syncContacts">Sinkronkan peserta lama</button>
+     <button class="btn secondary" id="syncFormContacts">Sinkronkan respons formulir lama</button>
+     <button class="btn secondary" id="dedupContacts">Gabungkan Duplikat</button>
+     <button class="btn secondary" id="exportContacts">Unduh CSV Kontak</button>
+    </div>
+    <div class="grid2">
+     <div class="field"><label>Cari kontak</label><input id="contactSearch" class="control" placeholder="Nama, email, WA, instansi"></div>
+     <div class="field"><label>Sumber</label><select id="contactSource" class="control"><option value="">Semua sumber</option><option value="PENGEMBANGAN DIRI">Pengembangan Diri</option><option value="FORMULIR">Formulir</option></select></div>
+    </div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Nama</th><th>Email/WA</th><th>Instansi</th><th>Sumber</th><th>Program/Formulir</th><th>Interaksi</th><th>Terakhir aktif</th><th>Aksi</th></tr></thead><tbody id="contactRows"></tbody></table></div>
+   </div>
+  </section>
+
+  <section id="p-programs" class="panel">
+   <div class="grid2">
+    <div class="card"><h2 id="programFormTitle">Buat Program</h2><form id="programForm"><input type="hidden" name="programId">
+     <div class="field"><label>Nama program</label><input class="control" name="nama" required></div>
+     <div class="grid2"><div class="field"><label>Ekosistem</label><select class="control" name="kategori"><option>SHARING KNOWLEDGE</option><option>BOOTCAMP</option><option>SERTIFIKASI BNSP</option></select></div><div class="field"><label>Jenis</label><select class="control" name="pricingType"><option>GRATIS</option><option>BERBAYAR</option></select></div></div>
+     <div class="field"><label>Harga</label><input class="control" type="number" name="price" min="0" value="0"></div>
+     <div class="field"><label>Deskripsi</label><textarea class="control" name="deskripsi"></textarea></div>
+     <div class="grid2"><div class="field"><label>Tanggal Kegiatan</label><input class="control" type="date" name="tanggalMulai"></div><div class="field"><label>Sampai Tanggal (opsional)</label><input class="control" type="date" name="tanggalAkhir"></div></div>
+     <div class="field"><label>Flyer/URL</label><input class="control" name="mediaUrl"></div>
+     <div class="actions"><button class="btn">Simpan</button><button type="button" class="btn secondary hidden" id="cancelProgram">Batal Edit</button></div>
+    </form></div>
+    <div class="card"><h2>Daftar Program</h2><div class="table-wrap"><table class="table"><thead><tr><th>Program</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="programRows"></tbody></table></div></div>
+   </div>
+   <div class="card"><h2>Peserta</h2>
+   <div class="grid2">
+    <div class="field"><label>Cari peserta</label><input id="participantSearch" class="control" placeholder="Nama, email, WA, instansi"></div>
+    <div class="field"><label>Status</label><select id="participantStatus" class="control"><option value="">Semua status</option><option value="AKTIF">AKTIF</option><option value="MENUNGGU_BAYAR">MENUNGGU_BAYAR</option><option value="MENUNGGU_VERIFIKASI">MENUNGGU_VERIFIKASI</option><option value="BUKTI_DITOLAK">BUKTI_DITOLAK</option></select></div>
+   </div>
+   <div class="field"><label>Program</label><select id="participantProgram" class="control"><option value="">Semua program</option></select></div>
+   <div class="table-wrap"><table class="table"><thead><tr><th>Peserta</th><th>Program</th><th>Kontak</th><th>Status</th><th>Akses</th><th>Aksi</th></tr></thead><tbody id="participantRows"></tbody></table></div></div>
+  </section>
+
+  <section id="p-payments" class="panel"><div class="card"><h2>Pembayaran</h2>
+    <div class="grid2"><div class="field"><label>Cari</label><input id="paymentSearch" class="control" placeholder="Nama, email, program"></div><div class="field"><label>Status</label><select id="paymentStatus" class="control"><option value="">Semua status</option><option value="MENUNGGU_VERIFIKASI">MENUNGGU_VERIFIKASI</option><option value="LUNAS">LUNAS</option><option value="DITOLAK">DITOLAK</option></select></div></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Peserta</th><th>Program</th><th>Nominal</th><th>Bukti</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="paymentRows"></tbody></table></div></div></section>
+
+  <section id="p-materials" class="panel">
+   <div class="grid2">
+    <div class="card"><h2 id="sessionFormTitle">1. Tambah Sesi</h2><form id="sessionForm"><input type="hidden" name="sessionId"><div class="field"><label>Program</label><select class="control" name="programId" id="sessionProgram"></select></div><div class="field"><label>Judul</label><input class="control" name="judul" required></div><div class="grid2"><div class="field"><label>Tanggal</label><input class="control" type="date" name="tanggalSesi" required></div><div class="field"><label>Jam</label><input class="control" type="time" name="jamSesi"></div></div><div class="field"><label>Zoom URL</label><input class="control" name="zoomUrl"></div><div class="field"><label>Deskripsi</label><textarea class="control" name="deskripsi"></textarea></div><div class="actions"><button class="btn">Simpan Sesi</button><button type="button" class="btn secondary hidden" id="cancelSession">Batal</button></div></form></div>
+    <div class="card"><h2 id="materialFormTitle">2. Tambah Materi</h2><form id="materialForm"><input type="hidden" name="materialId"><div class="field"><label>Program</label><select class="control" name="programId" id="materialProgram"></select></div><div class="field"><label>Sesi (opsional)</label><select class="control" name="sesiId" id="materialSession"><option value="">Materi Umum</option></select></div><div class="field"><label>Judul</label><input class="control" name="judul" required></div><div class="field"><label>Deskripsi</label><textarea class="control" name="deskripsi"></textarea></div><div class="field"><label>Link</label><input class="control" name="link" required></div><div class="actions"><button class="btn">Simpan Materi</button><button type="button" class="btn secondary hidden" id="cancelMaterial">Batal</button></div></form></div>
+   </div>
+   <div class="card"><h2>Daftar Sesi</h2><div class="grid2"><div class="field"><label>Cari sesi</label><input id="sessionSearch" class="control" placeholder="Judul/program"></div><div class="field"><label>Status</label><select id="sessionFilterStatus" class="control"><option value="">Semua</option><option>PUBLIKASI</option><option>DRAFT</option></select></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Program</th><th>Sesi</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="sessionRows"></tbody></table></div></div>
+   <div class="card"><h2>Daftar Materi</h2><div class="grid2"><div class="field"><label>Cari materi</label><input id="materialSearch" class="control" placeholder="Judul/program/sesi"></div><div class="field"><label>Status</label><select id="materialFilterStatus" class="control"><option value="">Semua</option><option>PUBLIKASI</option><option>DRAFT</option></select></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Program</th><th>Materi</th><th>Sesi</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="materialRows"></tbody></table></div></div>
+  </section>
+
+  <section id="p-forms" class="panel">
+   <div class="card"><div class="actions"><button class="btn" id="newForm">+ Formulir</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Judul</th><th>Kategori</th><th>Status</th><th>Pertanyaan</th><th>Respons</th><th>Aksi</th></tr></thead><tbody id="formRows"></tbody></table></div></div>
+  </section>
+
+  <section id="p-questions" class="panel">
+   <div class="grid2">
+    <div class="card">
+     <h2>Editor Pertanyaan</h2>
+     <div class="field"><label>Formulir</label><select id="questionFormSelect" class="control"></select></div>
+     <form id="questionEditor">
+      <input type="hidden" name="id">
+      <div class="field"><label>Pertanyaan</label><textarea name="text" class="control" required></textarea></div>
+      <div class="field"><label>Jenis jawaban</label><select name="type" id="questionType" class="control"><option value="radio">Pilihan tunggal</option><option value="checkbox">Pilihan lebih dari satu</option><option value="scale5">Skala 1–5</option><option value="scale10">Skala 1–10</option><option value="yesno">Ya/Tidak</option><option value="text">Jawaban singkat</option><option value="textarea">Jawaban panjang</option></select></div>
+      <div class="field" id="questionOptionsWrap"><label>Pilihan (satu per baris)</label><textarea id="questionOptions" class="control" placeholder="Pilihan A&#10;Pilihan B"></textarea></div>
+      <div class="field"><label><input type="checkbox" id="questionRequired"> Wajib dijawab</label></div>
+      <div class="actions"><button class="btn">Simpan Pertanyaan</button><button type="button" class="btn secondary hidden" id="cancelQuestion">Batal Edit</button></div>
+     </form>
+    </div>
+    <div class="card"><div class="actions" style="justify-content:space-between"><h2>Daftar Pertanyaan</h2><span id="questionCount" class="mut"></span></div><div id="questionList"></div></div>
+   </div>
+  </section>
+
+  <section id="p-analytics" class="panel">
+   <div class="card">
+    <div class="actions" style="justify-content:space-between;align-items:end">
+     <div class="field" style="min-width:320px;margin:0"><label>Pilih formulir</label><select id="analyticsFormSelect" class="control"></select></div>
+     <button class="btn secondary" id="exportCsv">Unduh CSV</button>
+    </div>
+   </div>
+   <div class="card"><h2>Ringkasan Jawaban</h2><div id="analyticsSummary"></div></div>
+   <div class="card"><h2>Respons Individual</h2><div id="responseTable" class="table-wrap"></div></div>
+  </section>
+ </main>
+</div>
+
+<div class="modal" id="formModal"><div class="modal-card"><h2 id="formModalTitle">Formulir</h2><form id="formEditor"><input type="hidden" name="id"><div class="field"><label>Judul</label><input class="control" name="title" required></div><div class="field"><label>Deskripsi</label><textarea class="control" name="description"></textarea></div><div class="grid2"><div class="field"><label>Kategori</label><input class="control" name="category"></div><div class="field"><label>Status</label><select class="control" name="status"><option value="draft">Draf</option><option value="active">Aktif</option><option value="closed">Ditutup</option></select></div></div><div class="grid2"><div class="field"><label>Akses</label><select class="control" name="accessMode"><option value="public">Publik</option><option value="link">Link khusus</option><option value="code">Kode</option></select></div><div class="field"><label>Kode akses</label><input class="control" name="accessCode"></div></div><div class="field"><label>Identitas</label><select class="control" name="identityMode"><option value="anonymous">Anonim</option><option value="optional">Opsional</option><option value="required">Wajib</option></select></div><div class="field"><label>Tanggal berakhir</label><input type="date" class="control" name="endDate"></div><div class="actions"><button class="btn">Simpan</button><button type="button" class="btn secondary" id="closeForm">Batal</button></div></form></div></div>
+
+
+<div class="modal" id="contactModal"><div class="modal-card"><h2>Edit Kontak</h2>
+ <form id="contactEditor">
+  <input type="hidden" name="contactId">
+  <div class="field"><label>Nama</label><input class="control" name="nama"></div>
+  <div class="field"><label>Email</label><input class="control" name="email" type="email"></div>
+  <div class="field"><label>WA</label><input class="control" name="wa"></div>
+  <div class="field"><label>Instansi</label><input class="control" name="instansi"></div>
+  <div class="actions"><button class="btn">Simpan</button><button type="button" class="btn secondary" id="closeContact">Batal</button></div>
+ </form>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let PIN=sessionStorage.getItem('being_native_pin')||'', data={programs:[],participants:[],payments:[],sessions:[],materials:[],contacts:[],forms:[]}, currentQuestions=[], currentAnalytics=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const fdate=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:String(v||'')};
+const wa=v=>{let r=String(v||'').replace(/\D/g,'');if(r.startsWith('62'))return r;if(r.startsWith('0'))return'62'+r.slice(1);if(r.startsWith('8'))return'62'+r;return r};
+const access=t=>'https://bangdir.beingpsikologi.com/akses.html?access='+encodeURIComponent(t||'');
+function gas(name,...args){return new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(e=>rej(new Error(e.message||e))).apply?0:0)}
+function call(name,...args){return new Promise((resolve,reject)=>{const r=google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(new Error(e.message||e)));r[name](...args)})}
+async function refresh(){try{const x=await call('getDashboard',PIN);data={programs:x.programs||[],participants:x.participants||[],payments:x.payments||[],sessions:x.sessions||[],materials:x.materials||[],contacts:x.contacts||[],forms:x.forms||[]};render(x.stats||{})}catch(e){notice(e.message,true)}}
+function notice(t,err=false){$('#notice').innerHTML=t?`<div class="notice ${err?'error':''}">${esc(t)}</div>`:''}
+function render(stats){$('#stats').innerHTML=Object.entries(stats).slice(0,8).map(([k,v])=>`<div class="stat"><b>${v}</b><span>${esc(k)}</span></div>`).join('');$('#dashPrograms').innerHTML=data.programs.slice(0,6).map(p=>`<div><b>${esc(p.nama)}</b> <span class="mut">${esc(p.kategori)} · ${esc(p.status)}</span></div>`).join('')||'Belum ada program';$('#dashForms').innerHTML=data.forms.slice(0,6).map(f=>`<div><b>${esc(f.title)}</b> <span class="mut">${f.responseCount} respons</span></div>`).join('')||'Belum ada formulir';renderPrograms();renderParticipants();renderPayments();renderSessions();renderMaterials();renderContacts();renderForms();fillProgramSelects();fillFormSelects()}
+function renderPrograms(){$('#programRows').innerHTML=data.programs.map(p=>`<tr><td><b>${esc(p.nama)}</b><br>${esc(p.kategori)}</td><td>${esc(p.pricingType)}${p.pricingType==='BERBAYAR'?'<br>Rp '+Number(p.price||0).toLocaleString('id-ID'):''}</td><td>${esc(p.status)}</td><td class="actions"><button class="btn secondary small" onclick="editProgram('${p.programId}')">Edit</button><button class="btn secondary small" onclick="toggleProgram('${p.programId}','${p.status==='BUKA'?'TUTUP':'BUKA'}')">${p.status==='BUKA'?'Tutup':'Buka'}</button><button class="btn danger small" onclick="delProgram('${p.programId}')">Hapus</button></td></tr>`).join('')}
+function renderParticipants(){
+ const q=($('#participantSearch')?.value||'').toLowerCase().trim(), st=$('#participantStatus')?.value||'', pid=$('#participantProgram')?.value||'';
+ const rows=data.participants.filter(p=>{
+  const hay=[p.nama,p.email,p.wa,p.institution,p.programNama].join(' ').toLowerCase();
+  return(!q||hay.includes(q))&&(!st||p.status===st)&&(!pid||p.programId===pid);
+ });
+ $('#participantRows').innerHTML=rows.map(p=>{const n=wa(p.wa),has=p.status==='AKTIF'&&p.accessToken;return `<tr><td><b>${esc(p.nama)}</b><br><span class="mut">${esc(p.institution||'')}</span></td><td>${esc(p.programNama)}</td><td>${esc(p.email)}<br>${esc(p.wa)}${n?`<br><span class="mut">WA: ${n}</span>`:''}</td><td><span class="badge">${esc(p.status)}</span><br><span class="mut">${esc(p.paymentStatus)}</span></td><td class="actions">${has?`<button class="btn secondary small" onclick="copyAccess('${p.accessToken}')">Salin Link</button><a class="btn secondary small" target="_blank" href="${access(p.accessToken)}">Buka MyBeing</a>${n?`<a class="btn secondary small" target="_blank" href="https://wa.me/${n}?text=${encodeURIComponent('Halo '+p.nama+', akses MyBeing: '+access(p.accessToken))}">WA</a>`:''}<button class="btn secondary small" onclick="mailParticipant('${p.pesertaId}')">Email</button><button class="btn secondary small" onclick="showAccess('${p.pesertaId}')">Kode</button>`:`<button class="btn secondary small" onclick="prepareAccess('${p.pesertaId}')">Siapkan Akses</button>`}</td><td><button class="btn danger small" onclick="delParticipant('${p.pesertaId}')">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="6" class="mut">Peserta tidak ditemukan.</td></tr>';
+}
+function renderPayments(){
+ const q=($('#paymentSearch')?.value||'').toLowerCase().trim(), st=$('#paymentStatus')?.value||'';
+ const rows=data.payments.filter(p=>{const hay=[p.nama,p.email,p.programNama].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!st||p.status===st)});
+ $('#paymentRows').innerHTML=rows.map(p=>`<tr><td>${esc(p.nama)}<br><span class="mut">${esc(p.email)}</span></td><td>${esc(p.programNama)}</td><td>Rp ${Number(p.amount||0).toLocaleString('id-ID')}</td><td>${p.proofUrl?`<a target="_blank" href="${esc(p.proofUrl)}">Buka</a>`:'-'}</td><td>${esc(p.status)}</td><td class="actions">${p.status==='MENUNGGU_VERIFIKASI'?`<button class="btn small" onclick="approvePay('${p.paymentId}')">Approve</button><button class="btn secondary small" onclick="rejectPay('${p.paymentId}')">Tolak</button>`:''}<button class="btn danger small" onclick="delPay('${p.paymentId}')">Hapus</button></td></tr>`).join('')||'<tr><td colspan="6" class="mut">Pembayaran tidak ditemukan.</td></tr>';
+}
+function renderSessions(){
+ const q=($('#sessionSearch')?.value||'').toLowerCase().trim(),st=$('#sessionFilterStatus')?.value||'';
+ const rows=data.sessions.filter(s=>{const hay=[s.judul,s.programNama].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!st||s.status===st)});
+ $('#sessionRows').innerHTML=rows.map(s=>`<tr><td>${esc(s.programNama)}</td><td><b>${esc(s.judul)}</b></td><td>${fdate(s.tanggalSesi)} ${esc(s.jamSesi)}</td><td>${esc(s.status)}</td><td class="actions"><button class="btn secondary small" onclick="editSession('${s.sesiId}')">Edit</button><button class="btn secondary small" onclick="sessionStatus('${s.sesiId}','${s.status==='PUBLIKASI'?'DRAFT':'PUBLIKASI'}')">${s.status==='PUBLIKASI'?'Draf':'Publikasi'}</button><button class="btn secondary small" onclick="zoomSession('${s.sesiId}',${!s.zoomAktif})">${s.zoomAktif?'Zoom Off':'Zoom On'}</button><button class="btn danger small" onclick="delSession('${s.sesiId}')">Hapus</button></td></tr>`).join('')||'<tr><td colspan="5" class="mut">Sesi tidak ditemukan.</td></tr>';
+}
+function renderMaterials(){
+ const q=($('#materialSearch')?.value||'').toLowerCase().trim(),st=$('#materialFilterStatus')?.value||'';
+ const rows=data.materials.filter(m=>{const hay=[m.judul,m.programNama,m.sesiNama].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!st||m.status===st)});
+ $('#materialRows').innerHTML=rows.map(m=>`<tr><td>${esc(m.programNama)}</td><td><b>${esc(m.judul)}</b><br><a href="${esc(m.link)}" target="_blank">Buka</a></td><td>${esc(m.sesiNama||'Materi Umum')}</td><td>${esc(m.status)}</td><td class="actions"><button class="btn secondary small" onclick="editMaterial('${m.materiId}')">Edit</button><button class="btn secondary small" onclick="materialStatus('${m.materiId}','${m.status==='PUBLIKASI'?'DRAFT':'PUBLIKASI'}')">${m.status==='PUBLIKASI'?'Draf':'Publikasi'}</button><button class="btn danger small" onclick="delMaterial('${m.materiId}')">Hapus</button></td></tr>`).join('')||'<tr><td colspan="5" class="mut">Materi tidak ditemukan.</td></tr>';
+}
+function renderContacts(){
+ const q=($('#contactSearch')?.value||'').toLowerCase().trim(),src=$('#contactSource')?.value||'';
+ const rows=data.contacts.filter(c=>{const hay=[c.nama,c.email,c.wa,c.instansi].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!src||String(c.sumber||'').includes(src))});
+ const both=data.contacts.filter(c=>String(c.sumber||'').includes('PENGEMBANGAN DIRI')&&String(c.sumber||'').includes('FORMULIR')).length;
+ const pd=data.contacts.filter(c=>String(c.sumber||'').includes('PENGEMBANGAN DIRI')).length;
+ const fm=data.contacts.filter(c=>String(c.sumber||'').includes('FORMULIR')).length;
+ if($('#contactStats'))$('#contactStats').innerHTML=[['Total kontak',data.contacts.length],['Pengembangan Diri',pd],['Formulir',fm],['Keduanya',both]].map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+ $('#contactRows').innerHTML=rows.map(c=>`<tr><td><b>${esc(c.nama)}</b></td><td>${esc(c.email)}<br>${esc(c.wa)}</td><td>${esc(c.instansi)}</td><td>${esc(c.sumber)}</td><td><span class="mut">Program:</span> ${esc(c.programIds||'-')}<br><span class="mut">Formulir:</span> ${esc(c.formulirIds||'-')}</td><td>${c.totalInteraksi||0}</td><td>${fdate(c.terakhirAktif||'')}</td><td class="actions"><button class="btn secondary small" onclick="editContact('${c.contactId}')">Edit</button><button class="btn danger small" onclick="delContact('${c.contactId}')">Hapus</button></td></tr>`).join('')||'<tr><td colspan="8" class="mut">Kontak tidak ditemukan.</td></tr>';
+}
+function renderForms(){$('#formRows').innerHTML=data.forms.map(f=>`<tr><td><b>${esc(f.title)}</b></td><td>${esc(f.category)}</td><td>${esc(f.status)}</td><td>${f.questionCount}</td><td>${f.responseCount}</td><td class="actions"><button class="btn secondary small" onclick="editForm('${f.id}')">Edit</button><button class="btn secondary small" onclick="openQuestions('${f.id}')">Pertanyaan</button><button class="btn secondary small" onclick="openAnalytics('${f.id}')">Hasil</button><button class="btn danger small" onclick="delForm('${f.id}')">Hapus</button></td></tr>`).join('')}
+function fillProgramSelects(){const o=data.programs.map(p=>`<option value="${p.programId}">${esc(p.nama)}</option>`).join('');$('#sessionProgram').innerHTML=o;$('#materialProgram').innerHTML=o;if($('#participantProgram'))$('#participantProgram').innerHTML='<option value="">Semua program</option>'+o;fillSessions()}
+function fillSessions(){const pid=$('#materialProgram').value;$('#materialSession').innerHTML='<option value="">Materi Umum</option>'+data.sessions.filter(s=>s.programId===pid).map(s=>`<option value="${s.sesiId}">${esc(s.judul)}</option>`).join('')}
+function fillFormSelects(){
+ const opt=data.forms.map(f=>`<option value="${f.id}">${esc(f.title)}</option>`).join('');
+ $('#questionFormSelect').innerHTML=opt;
+ $('#analyticsFormSelect').innerHTML=opt;
+ if(data.forms.length){
+   if(!$('#questionFormSelect').value)$('#questionFormSelect').value=data.forms[0].id;
+   if(!$('#analyticsFormSelect').value)$('#analyticsFormSelect').value=data.forms[0].id;
+ }
+}
+function showPanel(name){
+ $$('[data-panel]').forEach(x=>x.classList.toggle('active',x.dataset.panel===name));
+ $$('.panel').forEach(x=>x.classList.toggle('active',x.id==='p-'+name));
+ const b=$(`[data-panel="${name}"]`);if(b)$('#title').textContent=b.textContent;
+}
+async function openQuestions(id){showPanel('questions');$('#questionFormSelect').value=id;await loadQuestions()}
+async function openAnalytics(id){showPanel('analytics');$('#analyticsFormSelect').value=id;await loadAnalytics()}
+function questionTypeChanged(){$('#questionOptionsWrap').style.display=['radio','checkbox'].includes($('#questionType').value)?'block':'none'}
+async function loadQuestions(){
+ const id=$('#questionFormSelect').value;
+ if(!id){currentQuestions=[];$('#questionList').innerHTML='<span class="mut">Belum ada formulir.</span>';return}
+ try{
+   const x=await call('getFormDetails',PIN,id);currentQuestions=x.questions||[];
+   $('#questionCount').textContent=currentQuestions.length+' pertanyaan';
+   $('#questionList').innerHTML=currentQuestions.map((q,i)=>`<div style="padding:12px 0;border-bottom:1px solid #e9efec"><b>${i+1}. ${esc(q.text)}</b><div class="mut">${esc(q.type)}${q.required?' · wajib':''}</div><div class="actions" style="margin-top:7px"><button class="btn secondary small" onclick="editQuestion('${q.id}')">Edit</button><button class="btn danger small" onclick="delQuestion('${q.id}')">Hapus</button></div></div>`).join('')||'<span class="mut">Belum ada pertanyaan.</span>';
+ }catch(e){alert(e.message)}
+}
+function editQuestion(id){
+ const q=currentQuestions.find(x=>x.id===id),f=$('#questionEditor');if(!q)return;
+ f.elements.id.value=q.id;f.elements.text.value=q.text;f.elements.type.value=q.type;$('#questionRequired').checked=!!q.required;$('#questionOptions').value=(q.options||[]).join('\n');questionTypeChanged();$('#cancelQuestion').classList.remove('hidden');
+}
+function resetQuestion(){resetForm($('#questionEditor'));$('#questionRequired').checked=false;$('#questionOptions').value='';$('#cancelQuestion').classList.add('hidden');questionTypeChanged()}
+async function delQuestion(id){if(!confirm('Hapus pertanyaan ini?'))return;try{await call('deleteQuestion',PIN,id);await loadQuestions();await refresh()}catch(e){alert(e.message)}}
+async function loadAnalytics(){
+ const id=$('#analyticsFormSelect').value;if(!id){currentAnalytics=null;$('#analyticsSummary').innerHTML='';$('#responseTable').innerHTML='';return}
+ try{
+   currentAnalytics=await call('getFormAnalytics',PIN,id);
+   const summary=currentAnalytics.summary||[];
+   $('#analyticsSummary').innerHTML=summary.map((s,i)=>{
+     if(!s.options)return `<div class="chart-card"><b>${i+1}. ${esc(s.question)}</b><div class="mut">${s.answerCount||0} jawaban teks</div></div>`;
+     const max=Math.max(1,...s.options.map(o=>Number(o.count||0)));
+     return `<div class="chart-card"><b>${i+1}. ${esc(s.question)}</b>${s.options.map(o=>`<div class="bar-row"><span>${esc(o.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(Number(o.count||0)/max*100)}%"></div></div><b>${o.count}</b></div>`).join('')}</div>`;
+   }).join('')||'<span class="mut">Belum ada ringkasan.</span>';
+   const qmap=Object.fromEntries((currentAnalytics.questions||[]).map(q=>[q.id,q.text]));
+   const rows=(currentAnalytics.responses||[]).map(r=>`<tr><td>${esc(r.timestamp)}</td><td><b>${esc(r.respondentName||'Anonim')}</b><br>${esc(r.respondentEmail||'-')}<br>${esc(r.respondentWA||'')}</td><td>${Object.entries(r.answers||{}).map(([qid,v])=>`<div><b>${esc(qmap[qid]||qid)}:</b> ${esc(Array.isArray(v)?v.join(', '):(v&&v.url?v.name||v.url:v))}</div>`).join('')}</td><td><button class="btn danger small" onclick="delResponse('${r.id}')">Hapus</button></td></tr>`).join('');
+   $('#responseTable').innerHTML=`<table class="table"><thead><tr><th>Waktu</th><th>Responden</th><th>Jawaban</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="mut">Belum ada respons.</td></tr>'}</tbody></table>`;
+ }catch(e){alert(e.message)}
+}
+async function delResponse(id){if(!confirm('Hapus respons ini?'))return;try{await call('deleteResponse',PIN,id);await loadAnalytics();await refresh()}catch(e){alert(e.message)}}
+function exportResponsesCsv(){
+ if(!currentAnalytics)return;
+ const qs=currentAnalytics.questions||[], rows=[['Waktu','Nama','Email','WA','Instansi',...qs.map(q=>q.text)]];
+ (currentAnalytics.responses||[]).forEach(r=>rows.push([r.timestamp,r.respondentName||'',r.respondentEmail||'',r.respondentWA||'',r.respondentInstitution||'',...qs.map(q=>{const v=(r.answers||{})[q.id];return Array.isArray(v)?v.join(' | '):(v&&v.url?v.url:v||'')})]));
+ const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='being-formulir-respons.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+}
+
+async function copyAccess(t){const link=access(t);try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(link);alert('Link MyBeing disalin.');return}}catch(_){}prompt('Salin link MyBeing ini:',link)}
+async function showAccess(id){try{const x=await call('getParticipantAccess',PIN,id);alert(`Peserta: ${x.nama}\nProgram: ${x.programNama}\nKode: ${x.accessToken||'-'}\nWA: ${x.normalizedWA||'-'}\nLink: ${x.accessUrl||'-'}`)}catch(e){alert(e.message)}}
+async function prepareAccess(id){try{const x=await call('ensureParticipantAccess',PIN,id);alert(x.message+'\n'+x.accessUrl);await refresh()}catch(e){alert(e.message)}}
+async function mailParticipant(id){try{alert((await call('sendAccessEmail',PIN,id)).message)}catch(e){alert(e.message)}}
+async function toggleProgram(id,s){try{await call('setProgramStatus',PIN,id,s);await refresh()}catch(e){alert(e.message)}}
+async function delProgram(id){if(!confirm('Hapus program?'))return;try{await call('deleteProgram',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function delParticipant(id){if(!confirm('Hapus peserta?'))return;try{await call('deleteParticipant',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function approvePay(id){try{await call('approvePayment',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function rejectPay(id){const n=prompt('Catatan penolakan:','Bukti belum dapat diverifikasi.');if(n===null)return;try{await call('rejectPayment',PIN,id,n);await refresh()}catch(e){alert(e.message)}}
+async function delPay(id){if(!confirm('Hapus pembayaran?'))return;try{await call('deletePayment',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function sessionStatus(id,s){try{await call('setSessionStatus',PIN,id,s);await refresh()}catch(e){alert(e.message)}}
+async function zoomSession(id,on){try{await call('toggleSessionZoom',PIN,id,on);await refresh()}catch(e){alert(e.message)}}
+async function delSession(id){if(!confirm('Hapus sesi?'))return;try{await call('deleteSession',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function materialStatus(id,s){try{await call('setMaterialStatus',PIN,id,s);await refresh()}catch(e){alert(e.message)}}
+async function delMaterial(id){if(!confirm('Hapus materi?'))return;try{await call('deleteMaterial',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function delContact(id){if(!confirm('Hapus kontak?'))return;try{await call('deleteContact',PIN,id);await refresh()}catch(e){alert(e.message)}}
+async function delForm(id){if(!confirm('Hapus formulir dan data terkait?'))return;try{await call('deleteForm',PIN,id);await refresh()}catch(e){alert(e.message)}}
+function editProgram(id){const p=data.programs.find(x=>x.programId===id),f=$('#programForm');Object.entries({programId:p.programId,nama:p.nama,kategori:p.kategori,pricingType:p.pricingType,price:p.price,deskripsi:p.deskripsi,tanggalMulai:p.tanggalMulai,tanggalAkhir:p.tanggalAkhir,mediaUrl:p.mediaUrl}).forEach(([k,v])=>{if(f.elements[k])f.elements[k].value=v??''});$('#programFormTitle').textContent='Edit Program';$('#cancelProgram').classList.remove('hidden')}
+function editSession(id){const p=data.sessions.find(x=>x.sesiId===id),f=$('#sessionForm');Object.entries({sessionId:p.sesiId,programId:p.programId,judul:p.judul,tanggalSesi:p.tanggalSesi,jamSesi:p.jamSesi,zoomUrl:p.zoomUrl,deskripsi:p.deskripsi}).forEach(([k,v])=>{if(f.elements[k])f.elements[k].value=v??''});$('#sessionFormTitle').textContent='Edit Sesi';$('#cancelSession').classList.remove('hidden')}
+function editMaterial(id){const p=data.materials.find(x=>x.materiId===id),f=$('#materialForm');f.elements.programId.value=p.programId;fillSessions();Object.entries({materialId:p.materiId,sesiId:p.sesiId,judul:p.judul,deskripsi:p.deskripsi,link:p.link}).forEach(([k,v])=>{if(f.elements[k])f.elements[k].value=v??''});$('#materialFormTitle').textContent='Edit Materi';$('#cancelMaterial').classList.remove('hidden')}
+
+
+function downloadCsv(filename,rows){
+ const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+}
+function exportParticipantsCsv(){
+ const rows=[['Nama','Email','WA','Instansi','Program','Kategori','Status','Pembayaran','Kode Akses','Tanggal Daftar','Tanggal Aktif']];
+ data.participants.forEach(p=>rows.push([p.nama,p.email,p.wa,p.institution,p.programNama,p.kategori,p.status,p.paymentStatus,p.accessToken,p.tanggalDaftar,p.tanggalAktif]));
+ downloadCsv('being-peserta.csv',rows);
+}
+function exportPaymentsCsv(){
+ const rows=[['Nama','Email','Program','Nominal','Status','Tanggal Kirim','Bukti']];
+ data.payments.forEach(p=>rows.push([p.nama,p.email,p.programNama,p.amount,p.status,p.tanggalKirim,p.proofUrl]));
+ downloadCsv('being-pembayaran.csv',rows);
+}
+async function runOperationalAudit(){
+ try{
+  const x=await call('auditOperational',PIN);
+  alert(`Audit ${new Date(x.checkedAt).toLocaleString('id-ID')}\nProgram buka: ${x.programOpen}\nProgram tutup: ${x.programClosed}\nPeserta aktif: ${x.participantActive}\nPeserta belum aktif: ${x.participantWaiting}\nPembayaran menunggu: ${x.paymentWaiting}\nSesi publikasi: ${x.publishedSessions}\nMateri publikasi: ${x.publishedMaterials}\nKontak: ${x.contacts}\nFormulir: ${x.forms}\nRespons: ${x.responses}`);
+ }catch(e){alert(e.message)}
+}
+function editContact(id){
+ const c=data.contacts.find(x=>x.contactId===id),f=$('#contactEditor');if(!c)return;
+ Object.entries({contactId:c.contactId,nama:c.nama,email:c.email,wa:c.wa,instansi:c.instansi}).forEach(([k,v])=>{if(f.elements[k])f.elements[k].value=v||''});
+ $('#contactModal').classList.add('open');
+}
+function exportContactsCsv(){
+ const rows=[['Nama','Email','WA','Instansi','Sumber','Pertama Masuk','Terakhir Aktif','Total Interaksi','Program IDs','Formulir IDs']];
+ data.contacts.forEach(c=>rows.push([c.nama,c.email,c.wa,c.instansi,c.sumber,c.pertamaMasuk,c.terakhirAktif,c.totalInteraksi,c.programIds,c.formulirIds]));
+ const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='being-master-kontak.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+}
+function editForm(id){const p=data.forms.find(x=>x.id===id),f=$('#formEditor');Object.entries(p).forEach(([k,v])=>{if(f.elements[k]&&['string','number'].includes(typeof v))f.elements[k].value=v??''});$('#formModal').classList.add('open');$('#formModalTitle').textContent='Edit Formulir'}
+function resetForm(f){f.reset();[...f.querySelectorAll('input[type=hidden]')].forEach(x=>x.value='')}
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();PIN=$('#pin').value.trim();try{const r=await call('loginAdmin',PIN);if(!r.ok)throw new Error(r.message);sessionStorage.setItem('being_native_pin',PIN);$('#login').classList.add('hidden');$('#app').classList.remove('hidden');await refresh()}catch(e){$('#loginNotice').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}})
+$('#programForm').addEventListener('submit',async e=>{e.preventDefault();try{await call('saveProgram',PIN,Object.fromEntries(new FormData(e.currentTarget)));resetForm(e.currentTarget);$('#programFormTitle').textContent='Buat Program';$('#cancelProgram').classList.add('hidden');await refresh()}catch(e){alert(e.message)}})
+$('#sessionForm').addEventListener('submit',async e=>{e.preventDefault();try{await call('saveSession',PIN,Object.fromEntries(new FormData(e.currentTarget)));resetForm(e.currentTarget);$('#sessionFormTitle').textContent='1. Tambah Sesi';$('#cancelSession').classList.add('hidden');await refresh()}catch(e){alert(e.message)}})
+$('#materialForm').addEventListener('submit',async e=>{e.preventDefault();try{await call('saveMaterial',PIN,Object.fromEntries(new FormData(e.currentTarget)));resetForm(e.currentTarget);$('#materialFormTitle').textContent='2. Tambah Materi';$('#cancelMaterial').classList.add('hidden');await refresh()}catch(e){alert(e.message)}})
+$('#formEditor').addEventListener('submit',async e=>{e.preventDefault();try{await call('saveForm',PIN,Object.fromEntries(new FormData(e.currentTarget)));$('#formModal').classList.remove('open');resetForm(e.currentTarget);await refresh()}catch(e){alert(e.message)}})
+
+
+
+$('#participantSearch').addEventListener('input',renderParticipants);
+$('#participantStatus').addEventListener('change',renderParticipants);
+$('#participantProgram').addEventListener('change',renderParticipants);
+$('#paymentSearch').addEventListener('input',renderPayments);
+$('#paymentStatus').addEventListener('change',renderPayments);
+$('#sessionSearch').addEventListener('input',renderSessions);
+$('#sessionFilterStatus').addEventListener('change',renderSessions);
+$('#materialSearch').addEventListener('input',renderMaterials);
+$('#materialFilterStatus').addEventListener('change',renderMaterials);
+$('#auditOperationalBtn').onclick=runOperationalAudit;
+$('#exportParticipants').onclick=exportParticipantsCsv;
+$('#exportPayments').onclick=exportPaymentsCsv;
+$('#contactEditor').addEventListener('submit',async e=>{e.preventDefault();try{await call('updateContact',PIN,Object.fromEntries(new FormData(e.currentTarget)));$('#contactModal').classList.remove('open');await refresh()}catch(e){alert(e.message)}})
+$('#closeContact').onclick=()=>$('#contactModal').classList.remove('open');
+$('#contactSearch').addEventListener('input',renderContacts);
+$('#contactSource').addEventListener('change',renderContacts);
+$('#exportContacts').onclick=exportContactsCsv;
+$('#dedupContacts').onclick=async()=>{if(!confirm('Gabungkan kontak duplikat berdasarkan email/WA?'))return;try{const x=await call('deduplicateContacts',PIN);alert(x.message);await refresh()}catch(e){alert(e.message)}};
+$('#questionEditor').addEventListener('submit',async e=>{e.preventDefault();try{
+ const f=e.currentTarget, type=f.elements.type.value;
+ let options=[];if(['radio','checkbox'].includes(type))options=$('#questionOptions').value.split(/\n/).map(x=>x.trim()).filter(Boolean);
+ await call('saveQuestion',PIN,{id:f.elements.id.value,surveyId:$('#questionFormSelect').value,text:f.elements.text.value,type,required:$('#questionRequired').checked,options});
+ resetQuestion();await loadQuestions();await refresh();
+}catch(e){alert(e.message)}})
+$('#questionFormSelect').addEventListener('change',loadQuestions);
+$('#analyticsFormSelect').addEventListener('change',loadAnalytics);
+$('#questionType').addEventListener('change',questionTypeChanged);
+$('#cancelQuestion').onclick=resetQuestion;
+$('#exportCsv').onclick=exportResponsesCsv;
+$('#materialProgram').addEventListener('change',fillSessions);$('#cancelProgram').onclick=()=>{resetForm($('#programForm'));$('#programFormTitle').textContent='Buat Program';$('#cancelProgram').classList.add('hidden')};$('#cancelSession').onclick=()=>{resetForm($('#sessionForm'));$('#cancelSession').classList.add('hidden')};$('#cancelMaterial').onclick=()=>{resetForm($('#materialForm'));$('#cancelMaterial').classList.add('hidden')};$('#newForm').onclick=()=>{$('#formModal').classList.add('open');resetForm($('#formEditor'));$('#formModalTitle').textContent='Buat Formulir'};$('#closeForm').onclick=()=>$('#formModal').classList.remove('open');$('#syncContacts').onclick=async()=>{try{alert((await call('syncParticipantsToContacts',PIN)).message);await refresh()}catch(e){alert(e.message)}};$('#syncFormContacts').onclick=async()=>{try{alert((await call('syncOldFormResponsesToContacts',PIN)).message);await refresh()}catch(e){alert(e.message)}};$('#refresh').onclick=refresh;$('#logout').onclick=()=>{sessionStorage.clear();location.reload()}
+$$('[data-panel]').forEach(b=>b.onclick=async()=>{showPanel(b.dataset.panel);if(b.dataset.panel==='questions')await loadQuestions();if(b.dataset.panel==='analytics')await loadAnalytics()});
+questionTypeChanged();if(PIN){call('loginAdmin',PIN).then(r=>{if(r.ok){$('#login').classList.add('hidden');$('#app').classList.remove('hidden');refresh()}}).catch(()=>{})}
+</script>
+</body></html>

@@ -1,22 +1,47 @@
-(function(){
+(function(){console.log('BEING Admin Terpadu v4.0.1 loaded');
 const cfg=window.BEING_ADMIN_CONFIG||{};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 let pin=sessionStorage.getItem('being_unified_pin')||'', voiceToken=sessionStorage.getItem('being_voice_token')||'';
 let programs=[],participants=[],payments=[],materials=[],sessions=[],contacts=[],forms=[],questions=[],results=null;
 function voiceUrl(){return cfg.VOICE_API_URL||''} function bangUrl(){return cfg.BANGDIR_API_URL||''}
-async function voice(action,payload={}){if(!voiceUrl())throw new Error('VOICE_API_URL belum diatur.');const r=await fetch(voiceUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,payload,token:voiceToken})});const j=await r.json();if(!j.ok)throw new Error(j.message||'Permintaan Formulir gagal.');return j.data}
-async function bangGet(action,extra={}){if(!bangUrl())throw new Error('BANGDIR_API_URL belum diatur.');const u=new URL(bangUrl());Object.entries({action,adminKey:pin,...extra,_:Date.now()}).forEach(([k,v])=>u.searchParams.set(k,v));const r=await fetch(u,{cache:'no-store'});const j=await r.json();if(!j.ok)throw new Error(j.message||'Permintaan Pengembangan Diri gagal.');return j.data}
-async function bangPost(action,extra={}){const b=new URLSearchParams({action,adminKey:pin,...extra});const r=await fetch(bangUrl(),{method:'POST',body:b});const j=await r.json();if(!j.ok)throw new Error(j.message||'Permintaan Pengembangan Diri gagal.');return j}
+function jsonp(baseUrl,params={}){
+ return new Promise((resolve,reject)=>{
+  const cb='being_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const u=new URL(baseUrl);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v==null?'':String(v)));
+  u.searchParams.set('callback',cb);
+  u.searchParams.set('_',Date.now());
+  const s=document.createElement('script');
+  const timer=setTimeout(()=>finish(new Error('API timeout.')),20000);
+  function cleanup(){clearTimeout(timer);try{delete window[cb]}catch(_){};s.remove()}
+  function finish(err,data){cleanup();err?reject(err):resolve(data)}
+  window[cb]=data=>finish(null,data);
+  s.onerror=()=>finish(new Error('API gagal dimuat.'));
+  s.src=u.toString();
+  document.head.appendChild(s);
+ });
+}
+async function voice(action,payload={}){if(!voiceUrl())throw new Error('VOICE_API_URL belum diatur.');const j=await jsonp(voiceUrl(),{action,payload:JSON.stringify(payload||{}),token:voiceToken||''});if(!j||!j.ok)throw new Error(j?.message||'Permintaan Formulir gagal.');return j.data}
+async function bangGet(action,extra={}){if(!bangUrl())throw new Error('BANGDIR_API_URL belum diatur.');const j=await jsonp(bangUrl(),{action,adminKey:pin,...extra});if(!j||!j.ok)throw new Error(j?.message||'Permintaan Pengembangan Diri gagal.');return j.data}
+async function bangPost(action,extra={}){if(!bangUrl())throw new Error('BANGDIR_API_URL belum diatur.');const j=await jsonp(bangUrl(),{action,adminKey:pin,payload:JSON.stringify(extra||{})});if(!j||!j.ok)throw new Error(j?.message||'Permintaan Pengembangan Diri gagal.');return j}
 function rupiah(n){return'Rp '+Number(n||0).toLocaleString('id-ID')}
 function formatDateID(v){const s=String(v||'').trim();const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:s}
 function normalizeWa(wa){const r=String(wa||'').replace(/\D/g,'');return r.startsWith('0')?'62'+r.slice(1):r}
 function accessLink(t){return (cfg.PUBLIC_BANGDIR_URL||'https://bangdir.beingpsikologi.com/').replace(/\/?$/,'/')+'akses.html?access='+encodeURIComponent(t)}
 function showPanel(name){$$('.panel').forEach(x=>x.classList.toggle('active',x.id==='panel-'+name));$$('.menu [data-panel]').forEach(x=>x.classList.toggle('active',x.dataset.panel===name));const names={overview:'Dashboard',contacts:'Database Kontak',programs:'Program & Peserta',payments:'Pembayaran',materials:'Materi & Sesi',forms:'Formulir',questions:'Pertanyaan',results:'Respons & Analitik'};$('#pageTitle').textContent=names[name]||'BEING Admin';if(name==='results')loadResults();if(name==='questions')loadQuestions()}
-async function login(e){e.preventDefault();pin=$('#adminPin').value.trim();try{const d=await fetch(voiceUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'admin.login',payload:{pin},token:''})}).then(r=>r.json());if(!d.ok)throw new Error('PIN Formulir: '+(d.message||'tidak valid'));voiceToken=d.data.token;await bangGet('adminPrograms');sessionStorage.setItem('being_unified_pin',pin);sessionStorage.setItem('being_voice_token',voiceToken);$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');await refreshAll()}catch(err){$('#loginNotice').innerHTML='<div class="notice error">'+esc(err.message)+'</div>';pin='';voiceToken=''}}
+async function login(e){e.preventDefault();pin=$('#adminPin').value.trim();try{const d=await jsonp(voiceUrl(),{action:'admin.login',payload:JSON.stringify({pin}),token:''});if(!d||!d.ok)throw new Error('PIN Formulir: '+(d?.message||'tidak valid'));voiceToken=d.data.token;await bangGet('adminPrograms');sessionStorage.setItem('being_unified_pin',pin);sessionStorage.setItem('being_voice_token',voiceToken);$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');await refreshAll()}catch(err){$('#loginNotice').innerHTML='<div class="notice error">'+esc(err.message)+'</div>';pin='';voiceToken=''}}
 async function resume(){if(!pin||!voiceToken)return;try{await voice('admin.verify');await bangGet('adminPrograms');$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');await refreshAll()}catch(_){logout()}}
 function logout(){sessionStorage.removeItem('being_unified_pin');sessionStorage.removeItem('being_voice_token');pin='';voiceToken='';location.reload()}
-async function refreshAll(){const [p,pt,py,m,s,c,f]=await Promise.all([bangGet('adminPrograms'),bangGet('adminParticipants'),bangGet('adminPayments'),bangGet('adminMaterials'),bangGet('adminSessions'),bangGet('adminContacts'),voice('admin.listSurveys')]);programs=p||[];participants=pt||[];payments=py||[];materials=m||[];sessions=s||[];contacts=c||[];forms=f||[];renderAll()}
+async function refreshAll(){
+ const jobs=[['Program',()=>bangGet('adminPrograms')],['Peserta',()=>bangGet('adminParticipants')],['Pembayaran',()=>bangGet('adminPayments')],['Materi',()=>bangGet('adminMaterials')],['Sesi',()=>bangGet('adminSessions')],['Kontak',()=>bangGet('adminContacts')],['Formulir',()=>voice('admin.listSurveys')]];
+ const settled=await Promise.allSettled(jobs.map(x=>x[1]()));
+ const val=i=>settled[i].status==='fulfilled'?(settled[i].value||[]):[];
+ programs=val(0);participants=val(1);payments=val(2);materials=val(3);sessions=val(4);contacts=val(5);forms=val(6);
+ renderAll();
+ const failed=settled.map((r,i)=>r.status==='rejected'?jobs[i][0]+': '+(r.reason?.message||r.reason):'').filter(Boolean);
+ const n=$('#syncNotice');if(n)n.innerHTML=failed.length?'<div class="notice error"><b>Sebagian data belum termuat.</b><br>'+failed.map(esc).join('<br>')+'</div>':'';
+}
 function renderAll(){renderOverview();renderContacts();renderPrograms();renderParticipants();renderPayments();renderMaterials();renderSessions();renderForms();fillProgramSelects();fillFormSelects()}
 function renderOverview(){const pending=payments.filter(x=>x.status==='MENUNGGU_VERIFIKASI').length;const totalResp=forms.reduce((n,x)=>n+Number(x.responseCount||0),0);$('#stats').innerHTML=`<div class="stat"><b>${contacts.length}</b><span>Kontak unik</span></div><div class="stat"><b>${programs.length}</b><span>Program</span></div><div class="stat"><b>${participants.length}</b><span>Pendaftaran program</span></div><div class="stat"><b>${forms.length}</b><span>Formulir</span></div><div class="stat"><b>${totalResp}</b><span>Total respons</span></div>`;$('#overviewPrograms').innerHTML=programs.slice(0,6).map(p=>`<div style="padding:9px 0;border-bottom:1px solid #edf2ef"><b>${esc(p.nama)}</b><div class="mut">${esc(p.kategori)} · ${esc(p.status)} · ${participants.filter(x=>x.programId===p.programId).length} peserta</div></div>`).join('')||'<span class="mut">Belum ada program.</span>';$('#overviewForms').innerHTML=forms.slice(0,6).map(f=>`<div style="padding:9px 0;border-bottom:1px solid #edf2ef"><b>${esc(f.title)}</b><div class="mut">${esc(f.status)} · ${f.responseCount||0} respons</div></div>`).join('')||'<span class="mut">Belum ada formulir.</span>';if(pending)$('#pageTitle').title=pending+' pembayaran menunggu verifikasi'}
 function renderContacts(){const q=($('#contactSearch')?.value||'').toLowerCase(),src=$('#contactSource')?.value||'';const list=contacts.filter(c=>(!src||String(c.sumber).includes(src))&&(!q||[c.nama,c.email,c.wa,c.instansi,c.sumber].join(' ').toLowerCase().includes(q)));$('#contactRows').innerHTML=list.map(c=>`<tr><td><div class="contact-name">${esc(c.nama||'-')}</div><div class="contact-meta">${esc(c.contactId||'')}</div></td><td>${esc(c.email||'-')}<br>${esc(c.wa||'-')}</td><td>${esc(c.instansi||'-')}</td><td>${esc(c.sumber||'-')}</td><td>${Number(c.totalInteraksi||0)}</td><td>${esc(c.terakhirAktif||'-')}</td><td><button class="btn danger small" data-delete-contact="${c.contactId}">Hapus</button></td></tr>`).join('')||'<tr><td colspan="7" class="mut">Belum ada data.</td></tr>'}
