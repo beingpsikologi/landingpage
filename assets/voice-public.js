@@ -17,7 +17,17 @@ async function loadList(){
 }
 async function openSurvey(id,a={}){
  try{
-  access=a||{};current=await BVAPI.call('public.getSurvey',{surveyId:id,key:a.key||'',code:a.code||''});
+  access=a||{};
+  try{
+   current=await BVAPI.call('public.getSurvey',{surveyId:id,accessKey:access.key||'',accessCode:access.code||''});
+  }catch(e){
+   if(String(e.message||'').includes('KODE_AKSES_DIPERLUKAN')){
+    const code=prompt('Masukkan kode akses formulir dari admin BEING:','');
+    if(code===null)return;
+    access.code=String(code||'').trim();
+    current=await BVAPI.call('public.getSurvey',{surveyId:id,accessKey:access.key||'',accessCode:access.code});
+   }else throw e;
+  }
   $('#surveyId').value=id;$('#modalCategory').textContent=current.category||'FORMULIR BEING';$('#modalTitle').textContent=current.title||'';$('#modalDescription').textContent=current.description||'';
   renderIdentity();renderQuestions();$('#surveyModal').classList.add('open');$('#surveyModal').setAttribute('aria-hidden','false');
  }catch(e){alert(e.message)}
@@ -51,7 +61,7 @@ async function uploadOne(q,input){
  const accept=Array.isArray(cfg.accept)?cfg.accept:[];if(accept.length&&!accept.includes(file.type))throw new Error(`Jenis file "${file.name}" tidak diizinkan.`);
  $('#fileStatus_'+q.id).textContent='Mengunggah '+file.name+'…';
  const base64=await fileToBase64(file);
- const x=await BVAPI.call('public.uploadFile',{surveyId:current.id,questionId:q.id,key:access.key||'',code:access.code||'',fileName:file.name,mimeType:file.type,base64});
+ const x=await BVAPI.call('public.uploadFile',{surveyId:current.id,questionId:q.id,accessKey:access.key||'',accessCode:access.code||'',fileName:file.name,mimeType:file.type,base64});
  $('#fileStatus_'+q.id).textContent='Berkas terunggah: '+x.name;
  return x;
 }
@@ -65,7 +75,7 @@ async function submit(e){
    else if(q.type==='file'){const input=document.querySelector(`[data-file-q="${q.id}"]`);const x=await uploadOne(q,input);answers[q.id]=x||''}
    else answers[q.id]=f.get(n)||'';
   }
-  const p={surveyId:current.id,key:access.key||'',code:access.code||'',answers,userAgent:navigator.userAgent,respondentName:f.get('respondentName')||'',respondentEmail:f.get('respondentEmail')||'',respondentWA:f.get('respondentWA')||'',respondentInstitution:f.get('respondentInstitution')||''};
+  const p={surveyId:current.id,accessKey:access.key||'',accessCode:access.code||'',answers,userAgent:navigator.userAgent,respondentName:f.get('respondentName')||'',respondentEmail:f.get('respondentEmail')||'',respondentWA:f.get('respondentWA')||'',respondentInstitution:f.get('respondentInstitution')||''};
   await BVAPI.call('public.submitResponse',p);$('#submitNotice').innerHTML='<div class="notice">Terima kasih. Formulir berhasil dikirim.</div>';setTimeout(close,1200);
  }catch(e){$('#submitNotice').innerHTML='<div class="notice error">'+esc(e.message)+'</div>'}finally{btn.disabled=false}
 }
