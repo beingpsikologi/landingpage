@@ -1,5 +1,5 @@
 window.BEING_CONFIG = {
-  VOICE_API_URL: "https://script.google.com/macros/s/AKfycbzH_eo0IlqafWli5QjKxiQoYCog1JBvjaqzM6JVov8LWuSQTjg-KPjMcCxOlKE2SrHS/exec",
+  VOICE_API_URL: "https://script.google.com/macros/s/AKfycbxA9uM80aChQW2HHEqZ93l0wylTBepnMlSlpj50cDrvNyYZH3C5TK9b51ofS7kd26IX/exec",
 
   CONSULTATION_URL: "konsultasi.html",
 
