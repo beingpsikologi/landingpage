@@ -1,3 +1,24 @@
+/* BEING Form Public Link Fix v6.2
+   Bisa ditempel di awal voice-public.js jika file lama tidak membaca key/survey.
+*/
+(function(){
+  const u = new URL(window.location.href);
+  window.BEING_FORM_LINK = {
+    surveyId:
+      u.searchParams.get('survey') ||
+      u.searchParams.get('surveyId') ||
+      '',
+    accessKey:
+      u.searchParams.get('key') ||
+      u.searchParams.get('accessKey') ||
+      '',
+    accessCode:
+      u.searchParams.get('code') ||
+      u.searchParams.get('accessCode') ||
+      ''
+  };
+})();
+
 (function(){
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
