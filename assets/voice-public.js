@@ -1,457 +1,115 @@
-/* BEING VOICE PUBLIC — FIX 6.2.1
-   Memuat formulir dari API Voice yang sudah terbukti mengembalikan JSON.
-   Mendukung:
-   text, textarea, radio, checkbox, select, yesno, scale5, scale10, file.
-   Link:
-     ?survey=ID
-     ?survey=ID&key=SHARE_KEY
-     ?survey=ID&code=KODE
-*/
+/* BEING VOICE PUBLIC — v6.2.2 FINAL */
 (function(){
-  "use strict";
+"use strict";
+let currentSurvey=null;
+let link={survey:"",key:"",code:""};
+const $=id=>document.getElementById(id);
+const esc=v=>String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 
-  const $ = id => document.getElementById(id);
-  let currentSurvey = null;
-  let currentLink = {survey:"", key:"", code:""};
-
-  function esc(v){
-    return String(v == null ? "" : v)
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;")
-      .replace(/'/g,"&#039;");
+function params(){
+ const u=new URL(location.href);
+ return {
+  survey:u.searchParams.get("survey")||u.searchParams.get("surveyId")||"",
+  key:u.searchParams.get("key")||u.searchParams.get("accessKey")||"",
+  code:u.searchParams.get("code")||u.searchParams.get("accessCode")||""
+ };
+}
+function notice(html,bad){
+ const n=$("submitNotice");if(!n)return;
+ n.innerHTML=html||"";n.style.display=html?"block":"none";n.className=bad?"notice error":"notice success";
+}
+function openModal(){const m=$("surveyModal");if(m){m.classList.add("open");m.setAttribute("aria-hidden","false");}}
+function closeModal(){const m=$("surveyModal");if(m){m.classList.remove("open");m.setAttribute("aria-hidden","true");}}
+function opts(q){
+ if(Array.isArray(q.options))return q.options;
+ try{return JSON.parse(q.optionsJson||"[]")||[];}catch(_){return[];}
+}
+function wrap(q,h){return `<div class="form-field survey-question" data-question="${esc(q.id)}"><label><b>${esc(q.text)}</b>${q.required?' <span style="color:#b42318">*</span>':''}</label>${h}</div>`;}
+function renderQ(q){
+ const t=String(q.type||"text").toLowerCase(),n="q_"+q.id,req=q.required?"required":"",o=opts(q);
+ if(t==="textarea")return wrap(q,`<textarea class="form-control" name="${esc(n)}" ${req}></textarea>`);
+ if(t==="select")return wrap(q,`<select class="form-control" name="${esc(n)}" ${req}><option value="">Pilih...</option>${o.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select>`);
+ if(t==="radio"||t==="yesno"){const a=t==="yesno"?["Ya","Tidak"]:o;return wrap(q,`<div class="survey-options">${a.map((v,i)=>`<label class="option-row"><input type="radio" name="${esc(n)}" value="${esc(v)}" ${req&&i===0?req:""}><span>${esc(v)}</span></label>`).join("")}</div>`);}
+ if(t==="checkbox")return wrap(q,`<div class="survey-options">${o.map(v=>`<label class="option-row"><input type="checkbox" name="${esc(n)}" value="${esc(v)}"><span>${esc(v)}</span></label>`).join("")}</div>`);
+ if(t==="scale5"||t==="scale10"){const max=t==="scale5"?5:10;return wrap(q,`<div class="scale-options">${Array.from({length:max},(_,i)=>i+1).map(v=>`<label class="scale-item"><input type="radio" name="${esc(n)}" value="${v}" ${req&&v===1?req:""}><span>${v}</span></label>`).join("")}</div>`);}
+ if(t==="file"){const c=(o&&typeof o[0]==="object")?o[0]:{},mb=Number(c.maxMb||5);return wrap(q,`<input class="form-control survey-file" type="file" name="${esc(n)}" data-question="${esc(q.id)}" ${req}><small>Maksimal ${mb} MB.</small><div class="file-status" id="fileStatus_${esc(q.id)}"></div>`);}
+ return wrap(q,`<input class="form-control" type="text" name="${esc(n)}" ${req}>`);
+}
+function identity(s){
+ const b=$("identityFields");if(!b)return;
+ if(String(s.identityMode||"anonymous").toLowerCase()==="anonymous"){b.innerHTML="";return;}
+ const req=String(s.identityMode||"").toLowerCase()==="required"?"required":"";
+ b.innerHTML=`<div class="identity-box"><h3>Identitas Responden</h3><div class="form-field"><label>Nama${req?' <span style="color:#b42318">*</span>':''}</label><input class="form-control" name="respondentName" ${req}></div><div class="form-field"><label>Email</label><input class="form-control" name="respondentEmail" type="email"></div><div class="form-field"><label>WhatsApp</label><input class="form-control" name="respondentWA"></div><div class="form-field"><label>Instansi / Sekolah</label><input class="form-control" name="respondentInstitution"></div></div>`;
+}
+function render(s){
+ currentSurvey=s;
+ if($("modalCategory"))$("modalCategory").textContent=s.category||"FORMULIR BEING";
+ if($("modalTitle"))$("modalTitle").textContent=s.title||"Formulir BEING";
+ if($("modalDescription"))$("modalDescription").textContent=s.description||"";
+ if($("surveyId"))$("surveyId").value=s.id;
+ identity(s);
+ if($("questionFields"))$("questionFields").innerHTML=(s.questions||[]).map(renderQ).join("")||`<div class="loading-state">Belum ada pertanyaan.</div>`;
+ notice("");openModal();
+}
+function openSurvey(id,key,code){
+ return BVAPI.getSurvey(id,key,code).then(render).catch(e=>{
+  if(String(e.message||"").indexOf("KODE_AKSES_DIPERLUKAN")>=0){
+   const c=prompt("Masukkan kode akses formulir:");
+   if(c)return BVAPI.getSurvey(id,key,c).then(s=>{link.code=c;render(s);});
   }
-
-  function params(){
-    const u = new URL(location.href);
-    return {
-      survey: u.searchParams.get("survey") || u.searchParams.get("surveyId") || "",
-      key: u.searchParams.get("key") || u.searchParams.get("accessKey") || "",
-      code: u.searchParams.get("code") || u.searchParams.get("accessCode") || ""
-    };
+  alert(e.message||"Formulir tidak dapat dibuka.");
+ });
+}
+function loadList(){
+ const box=$("surveyList");if(!box)return;
+ box.innerHTML=`<div class="loading-state">Memuat formulir BEING…</div>`;
+ BVAPI.listSurveys().then(list=>{
+  if(!Array.isArray(list)||!list.length){box.innerHTML=`<div class="loading-state">Belum ada formulir aktif.</div>`;return;}
+  box.innerHTML=list.map(s=>`<article class="survey-card"><div class="survey-card-body"><span class="voice-kicker">${esc(s.category||"FORMULIR BEING")}</span><h3>${esc(s.title)}</h3><p>${esc(s.description||"")}</p><div class="survey-meta"><span>${Number(s.questionCount||0)} pertanyaan</span></div><button class="voice-btn primary" type="button" data-open="${esc(s.id)}">Isi Formulir</button></div></article>`).join("");
+  box.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openSurvey(b.getAttribute("data-open"),"",""));
+ }).catch(e=>{box.innerHTML=`<div class="loading-state">Formulir belum dapat dimuat.<br><small>${esc(e.message||"Silakan coba kembali.")}</small></div>`;});
+}
+function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
+function val(form,name){const e=form.querySelector('[name="'+name.replace(/"/g,'\\"')+'"]');return e?e.value:"";}
+async function submit(e){
+ e.preventDefault();
+ const form=e.currentTarget,btn=$("submitSurvey");
+ if(btn){btn.disabled=true;btn.textContent="Mengirim…";}
+ try{
+  const answers={};
+  for(const q of currentSurvey.questions||[]){
+   const n="q_"+q.id,t=String(q.type||"text").toLowerCase();
+   if(t==="checkbox")answers[q.id]=Array.from(form.querySelectorAll('input[name="'+n+'"]:checked')).map(x=>x.value);
+   else if(t!=="file"){const x=form.querySelector('[name="'+n.replace(/"/g,'\\"')+'"]');answers[q.id]=x?x.value:"";}
   }
-
-  function setNotice(html, bad){
-    const n = $("submitNotice");
-    if(!n) return;
-    n.innerHTML = html || "";
-    n.style.display = html ? "block" : "none";
-    n.className = bad ? "notice error" : "notice success";
+  for(const q of currentSurvey.questions||[]){
+   if(String(q.type||"").toLowerCase()!=="file")continue;
+   const x=form.querySelector('input[data-question="'+q.id+'"]'),f=x&&x.files&&x.files[0];if(!f)continue;
+   const st=$("fileStatus_"+q.id);if(st)st.textContent="Mengunggah…";
+   const d=String(await readFile(f)),m=d.match(/^data:([^;]+);base64,(.+)$/);if(!m)throw new Error("File tidak dapat dibaca.");
+   const r=await BVAPI.uploadFile({surveyId:currentSurvey.id,questionId:q.id,accessKey:link.key,accessCode:link.code,fileName:f.name,mimeType:f.type,base64:m[2]});
+   answers[q.id]=r.url||r.name||"";
+   if(st)st.textContent="✓ "+(r.name||f.name);
   }
-
-  function openModal(){
-    const m = $("surveyModal");
-    if(!m) return;
-    m.classList.add("open");
-    m.setAttribute("aria-hidden","false");
-  }
-
-  function closeModal(){
-    const m = $("surveyModal");
-    if(!m) return;
-    m.classList.remove("open");
-    m.setAttribute("aria-hidden","true");
-    currentSurvey = null;
-  }
-
-  function fieldWrap(q, inner){
-    return `<div class="form-field survey-question" data-question="${esc(q.id)}">
-      <label><b>${esc(q.text)}</b>${q.required ? ' <span style="color:#b42318">*</span>' : ''}</label>
-      ${inner}
-    </div>`;
-  }
-
-  function optionList(q){
-    let o = q.options;
-    if(!Array.isArray(o)){
-      try { o = JSON.parse(q.optionsJson || "[]"); } catch(_) { o=[]; }
-    }
-    return o || [];
-  }
-
-  function renderQuestion(q){
-    const type = String(q.type || "text").toLowerCase();
-    const required = q.required ? "required" : "";
-    const name = "q_" + q.id;
-    const opts = optionList(q);
-
-    if(type === "textarea"){
-      return fieldWrap(q,
-        `<textarea class="form-control" name="${esc(name)}" ${required}></textarea>`
-      );
-    }
-
-    if(type === "radio" || type === "yesno"){
-      const values = type === "yesno" ? ["Ya","Tidak"] : opts;
-      return fieldWrap(q,
-        `<div class="survey-options">${
-          values.map((v,i)=>`
-            <label class="option-row">
-              <input type="radio" name="${esc(name)}" value="${esc(v)}" ${required && i===0 ? required : ""}>
-              <span>${esc(v)}</span>
-            </label>`).join("")
-        }</div>`
-      );
-    }
-
-    if(type === "checkbox"){
-      return fieldWrap(q,
-        `<div class="survey-options">${
-          opts.map(v=>`
-            <label class="option-row">
-              <input type="checkbox" name="${esc(name)}" value="${esc(v)}">
-              <span>${esc(v)}</span>
-            </label>`).join("")
-        }</div>`
-      );
-    }
-
-    if(type === "select"){
-      return fieldWrap(q,
-        `<select class="form-control" name="${esc(name)}" ${required}>
-          <option value="">Pilih...</option>
-          ${opts.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}
-        </select>`
-      );
-    }
-
-    if(type === "scale5" || type === "scale10"){
-      const max = type === "scale5" ? 5 : 10;
-      return fieldWrap(q,
-        `<div class="scale-options">${
-          Array.from({length:max},(_,i)=>i+1).map(v=>`
-            <label class="scale-item">
-              <input type="radio" name="${esc(name)}" value="${v}" ${required && v===1 ? required : ""}>
-              <span>${v}</span>
-            </label>`).join("")
-        }</div>`
-      );
-    }
-
-    if(type === "file"){
-      const cfg = (opts && opts[0] && typeof opts[0] === "object") ? opts[0] : {};
-      const maxMb = Number(cfg.maxMb || 5);
-      return fieldWrap(q,
-        `<input class="form-control survey-file" type="file"
-                name="${esc(name)}"
-                data-question="${esc(q.id)}"
-                ${required}>
-         <small>Maksimal ${maxMb} MB.</small>
-         <div class="file-status" id="fileStatus_${esc(q.id)}"></div>`
-      );
-    }
-
-    return fieldWrap(q,
-      `<input class="form-control" type="text" name="${esc(name)}" ${required}>`
-    );
-  }
-
-  function renderIdentity(s){
-    const box = $("identityFields");
-    if(!box) return;
-
-    const mode = String(s.identityMode || "anonymous").toLowerCase();
-
-    if(mode === "anonymous"){
-      box.innerHTML = "";
-      return;
-    }
-
-    const req = mode === "required" ? "required" : "";
-
-    box.innerHTML = `
-      <div class="identity-box">
-        <h3>Identitas Responden</h3>
-        <div class="form-field">
-          <label>Nama${req ? ' <span style="color:#b42318">*</span>' : ''}</label>
-          <input class="form-control" name="respondentName" type="text" ${req}>
-        </div>
-        <div class="form-field">
-          <label>Email</label>
-          <input class="form-control" name="respondentEmail" type="email">
-        </div>
-        <div class="form-field">
-          <label>WhatsApp</label>
-          <input class="form-control" name="respondentWA" type="tel">
-        </div>
-        <div class="form-field">
-          <label>Instansi / Sekolah</label>
-          <input class="form-control" name="respondentInstitution" type="text">
-        </div>
-      </div>`;
-  }
-
-  function renderSurvey(s){
-    currentSurvey = s;
-
-    if($("modalCategory")) $("modalCategory").textContent = s.category || "FORMULIR BEING";
-    if($("modalTitle")) $("modalTitle").textContent = s.title || "Formulir BEING";
-    if($("modalDescription")) $("modalDescription").textContent = s.description || "";
-    if($("surveyId")) $("surveyId").value = s.id;
-
-    renderIdentity(s);
-
-    if($("questionFields")){
-      $("questionFields").innerHTML =
-        (s.questions || []).map(renderQuestion).join("") ||
-        `<div class="loading-state">Belum ada pertanyaan.</div>`;
-    }
-
-    setNotice("");
-    openModal();
-  }
-
-  function card(s){
-    return `
-      <article class="survey-card">
-        <div class="survey-card-body">
-          <span class="voice-kicker">${esc(s.category || "FORMULIR BEING")}</span>
-          <h3>${esc(s.title)}</h3>
-          <p>${esc(s.description || "")}</p>
-          <div class="survey-meta">
-            <span>${Number(s.questionCount || 0)} pertanyaan</span>
-          </div>
-          <button class="voice-btn primary" type="button" data-open-survey="${esc(s.id)}">
-            Isi Formulir
-          </button>
-        </div>
-      </article>`;
-  }
-
-  async function loadList(){
-    const box = $("surveyList");
-    if(!box) return;
-
-    box.innerHTML = `<div class="loading-state">Memuat formulir BEING…</div>`;
-
-    try{
-      const list = await window.BVAPI.listSurveys();
-
-      if(!Array.isArray(list) || !list.length){
-        box.innerHTML = `<div class="loading-state">Belum ada formulir aktif.</div>`;
-        return;
-      }
-
-      box.innerHTML = list.map(card).join("");
-
-      box.querySelectorAll("[data-open-survey]").forEach(btn=>{
-        btn.addEventListener("click",()=>{
-          loadOne(
-            btn.getAttribute("data-open-survey"),
-            "",
-            ""
-          );
-        });
-      });
-    }catch(err){
-      console.error(err);
-      box.innerHTML =
-        `<div class="loading-state">Formulir belum dapat dimuat.<br>
-          <small>${esc(err.message || "Silakan coba kembali.")}</small>
-        </div>`;
-    }
-  }
-
-  async function loadOne(id,key,code){
-    try{
-      setNotice("");
-      const s = await window.BVAPI.getSurvey(id,key,code);
-      renderSurvey(s);
-    }catch(err){
-      console.error(err);
-
-      const msg = String(err.message || "");
-
-      if(msg.indexOf("KODE_AKSES_DIPERLUKAN") >= 0){
-        const codeInput = prompt("Masukkan kode akses formulir:");
-        if(codeInput){
-          try{
-            const s = await window.BVAPI.getSurvey(id,key,codeInput);
-            currentLink.code = codeInput;
-            renderSurvey(s);
-            return;
-          }catch(e){}
-        }
-      }
-
-      alert(msg || "Formulir tidak dapat dibuka.");
-    }
-  }
-
-  async function fileToBase64(file){
-    return new Promise((resolve,reject)=>{
-      const r = new FileReader();
-      r.onload = ()=>resolve(r.result);
-      r.onerror = reject;
-      r.readAsDataURL(file);
-    });
-  }
-
-  async function collectAnswers(form){
-    const answers = {};
-
-    (currentSurvey.questions || []).forEach(q=>{
-      const name = "q_" + q.id;
-      const type = String(q.type || "text").toLowerCase();
-
-      if(type === "checkbox"){
-        answers[q.id] =
-          Array.from(form.querySelectorAll(
-            `input[name="${CSS.escape(name)}"]:checked`
-          )).map(x=>x.value);
-        return;
-      }
-
-      if(type === "file"){
-        return; // diisi setelah upload
-      }
-
-      const el = form.querySelector(`[name="${CSS.escape(name)}"]`);
-      answers[q.id] = el ? el.value : "";
-    });
-
-    return answers;
-  }
-
-  async function uploadFiles(form, answers){
-    const files = Array.from(
-      form.querySelectorAll("input[type=file][data-question]")
-    );
-
-    for(const input of files){
-      const file = input.files && input.files[0];
-      if(!file) continue;
-
-      const qid = input.getAttribute("data-question");
-      const status = $("fileStatus_" + qid);
-      if(status) status.textContent = "Mengunggah…";
-
-      const dataUrl = await fileToBase64(file);
-      const m = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/);
-
-      if(!m) throw new Error("File tidak dapat dibaca.");
-
-      const result = await window.BVAPI.uploadFile({
-        surveyId: currentSurvey.id,
-        questionId: qid,
-        accessKey: currentLink.key || "",
-        accessCode: currentLink.code || "",
-        fileName: file.name,
-        mimeType: file.type,
-        base64: m[2]
-      });
-
-      answers[qid] = result.url || result.name || "";
-
-      if(status) status.innerHTML =
-        `<span>✓ ${esc(result.name || file.name)}</span>`;
-    }
-  }
-
-  async function submit(e){
-    e.preventDefault();
-
-    if(!currentSurvey) return;
-
-    const form = e.currentTarget;
-    const btn = $("submitSurvey");
-
-    if(btn) {
-      btn.disabled = true;
-      btn.textContent = "Mengirim…";
-    }
-
-    try{
-      const answers = await collectAnswers(form);
-
-      const identity = {
-        respondentName:
-          (form.querySelector('[name="respondentName"]') || {}).value || "",
-        respondentEmail:
-          (form.querySelector('[name="respondentEmail"]') || {}).value || "",
-        respondentWA:
-          (form.querySelector('[name="respondentWA"]') || {}).value || "",
-        respondentInstitution:
-          (form.querySelector('[name="respondentInstitution"]') || {}).value || ""
-      };
-
-      await uploadFiles(form, answers);
-
-      await window.BVAPI.submitResponse({
-        surveyId: currentSurvey.id,
-        accessKey: currentLink.key || "",
-        accessCode: currentLink.code || "",
-        answers: answers,
-        respondentName: identity.respondentName,
-        respondentEmail: identity.respondentEmail,
-        respondentWA: identity.respondentWA,
-        respondentInstitution: identity.respondentInstitution,
-        respondentContact:
-          identity.respondentEmail || identity.respondentWA || "",
-        userAgent: navigator.userAgent
-      });
-
-      setNotice("<b>Terima kasih.</b><br>Formulir berhasil dikirim.");
-      form.reset();
-
-      if(btn){
-        btn.disabled = false;
-        btn.textContent = "Terkirim";
-      }
-    }catch(err){
-      console.error(err);
-      setNotice(
-        "<b>Belum berhasil.</b><br>" +
-        esc(err.message || "Silakan coba kembali."),
-        true
-      );
-
-      if(btn){
-        btn.disabled = false;
-        btn.textContent = "Kirim Formulir";
-      }
-    }
-  }
-
-  function init(){
-    currentLink = params();
-
-    const form = $("surveyForm");
-    if(form) form.addEventListener("submit",submit);
-
-    if($("closeModal"))
-      $("closeModal").addEventListener("click",closeModal);
-
-    if($("cancelSurvey"))
-      $("cancelSurvey").addEventListener("click",closeModal);
-
-    const modal = $("surveyModal");
-    if(modal){
-      modal.addEventListener("click",e=>{
-        if(e.target === modal) closeModal();
-      });
-    }
-
-    /* Link khusus dari Studio: langsung buka formulir. */
-    if(currentLink.survey){
-      const box = $("surveyList");
-      if(box)
-        box.innerHTML = `<div class="loading-state">Membuka formulir…</div>`;
-
-      loadOne(
-        currentLink.survey,
-        currentLink.key,
-        currentLink.code
-      );
-    }else{
-      loadList();
-    }
-  }
-
-  if(document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded",init);
-  else
-    init();
-
+  await BVAPI.submitResponse({
+   surveyId:currentSurvey.id,accessKey:link.key,accessCode:link.code,answers,
+   respondentName:val(form,"respondentName"),respondentEmail:val(form,"respondentEmail"),
+   respondentWA:val(form,"respondentWA"),respondentInstitution:val(form,"respondentInstitution"),
+   respondentContact:val(form,"respondentEmail")||val(form,"respondentWA"),
+   userAgent:navigator.userAgent
+  });
+  notice("<b>Terima kasih.</b><br>Formulir berhasil dikirim.");
+  form.reset();
+ }catch(e){notice("<b>Belum berhasil.</b><br>"+esc(e.message||"Silakan coba kembali."),true);}
+ finally{if(btn){btn.disabled=false;btn.textContent="Kirim Formulir";}}
+}
+function init(){
+ link=params();
+ const f=$("surveyForm");if(f)f.addEventListener("submit",submit);
+ if($("closeModal"))$("closeModal").onclick=closeModal;
+ if($("cancelSurvey"))$("cancelSurvey").onclick=closeModal;
+ if($("surveyModal"))$("surveyModal").onclick=e=>{if(e.target===$("surveyModal"))closeModal();};
+ if(link.survey)openSurvey(link.survey,link.key,link.code);else loadList();
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
