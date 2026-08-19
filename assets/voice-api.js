@@ -1,12 +1,4 @@
-/* BEING VOICE API v6.2.4
-   GET/JSONP:
-   - listSurveys
-   - getSurvey
-   - submitResponse
-
-   POST:
-   - uploadFile (tetap POST karena base64 file tidak cocok untuk URL)
-*/
+/* BEING VOICE API v6.2.4 — ACCESS KEY SAFE PATCH */
 (function(){
 "use strict";
 
@@ -23,12 +15,18 @@ function get(action,payload){
     const cb="beingVoice_"+Date.now()+"_"+Math.random().toString(36).slice(2);
     const script=document.createElement("script");
     const u=new URL(endpoint());
+    const data=payload||{};
 
     u.searchParams.set("action",action);
-    u.searchParams.set("payload",JSON.stringify(payload||{}));
+    u.searchParams.set("payload",JSON.stringify(data));
     u.searchParams.set("callback",cb);
-    u.searchParams.set("_v","6.2.4");
+    u.searchParams.set("_v","6.2.4-accessfix");
     u.searchParams.set("_t",String(Date.now()));
+
+    // Redundant top-level parameters: backend accepts these as fallback.
+    if(data.surveyId)   u.searchParams.set("surveyId",String(data.surveyId));
+    if(data.accessKey)  u.searchParams.set("accessKey",String(data.accessKey));
+    if(data.accessCode) u.searchParams.set("accessCode",String(data.accessCode));
 
     let finished=false;
 
@@ -54,7 +52,6 @@ function get(action,payload){
         reject(new Error(resp && resp.message || "Permintaan formulir gagal."));
         return;
       }
-
       resolve(resp.data);
     };
 
@@ -94,7 +91,7 @@ function post(action,payload){
 
     hidden("action",action);
     hidden("payload",payload||{});
-    hidden("_v","6.2.4");
+    hidden("_v","6.2.4-accessfix");
 
     let done=false;
     const finish=()=>{
