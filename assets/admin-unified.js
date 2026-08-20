@@ -72,7 +72,142 @@ async function saveForm(e){e.preventDefault();await voice('admin.saveSurvey',{id
 async function loadQuestions(){const sid=$('#questionFormSelect').value;if(!sid){$('#questionList').innerHTML='';return}questions=await voice('admin.listQuestions',{surveyId:sid});$('#questionCount').textContent=questions.length+' pertanyaan';$('#questionList').innerHTML=questions.map((q,i)=>`<div style="padding:12px 0;border-bottom:1px solid #edf2ef"><b>${i+1}. ${esc(q.text)}</b><div class="mut">${esc(q.type)}${q.required?' · wajib':''}</div><div class="actions" style="margin-top:8px"><button class="btn secondary small" data-edit-q="${q.id}">Edit</button><button class="btn danger small" data-del-q="${q.id}">Hapus</button></div></div>`).join('')||'<span class="mut">Belum ada pertanyaan.</span>'}
 function questionTypeChanged(){$('#questionOptionsWrap').style.display=['radio','checkbox'].includes($('#questionType').value)?'block':'none'}
 async function saveQuestion(e){e.preventDefault();const t=$('#questionType').value;let options=[];if(['radio','checkbox'].includes(t))options=$('#questionOptions').value.split(/\n/).map(x=>x.trim()).filter(Boolean);await voice('admin.saveQuestion',{id:$('#questionId').value,surveyId:$('#questionFormSelect').value,text:$('#questionText').value,type:t,required:$('#questionRequired').checked,options});$('#questionEditor').reset();$('#questionId').value='';questionTypeChanged();await loadQuestions();forms=await voice('admin.listSurveys');renderForms();fillFormSelects()}
-async function loadResults(){const sid=$('#resultFormSelect').value;if(!sid)return;results=await voice('admin.getResults',{surveyId:sid});const summary=results.summary||[];$('#resultSummary').innerHTML=summary.map((s,i)=>{if(!s.options)return`<div class="chart-card"><h4>${i+1}. ${esc(s.question)}</h4><div class="mut">${s.answerCount||0} jawaban teks</div></div>`;const max=Math.max(1,...s.options.map(o=>Number(o.count||0)));return`<div class="chart-card"><h4>${i+1}. ${esc(s.question)}</h4>${s.options.map(o=>`<div class="bar-row"><span>${esc(o.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(Number(o.count||0)/max*100)}%"></div></div><b>${o.count}</b></div>`).join('')}</div>`}).join('')||'<span class="mut">Belum ada data.</span>';const qmap={};(results.questions||[]).forEach(q=>qmap[q.id]=q.text);const rows=(results.responses||[]).map(r=>`<tr><td>${esc(r.timestamp)}</td><td><b>${esc(r.respondentName||'Anonim')}</b><br>${esc(r.respondentEmail||r.respondentContact||'-')}<br>${esc(r.respondentWA||'')}</td><td>${Object.entries(r.answers||{}).map(([qid,v])=>`<div><b>${esc(qmap[qid]||qid)}:</b> ${esc(Array.isArray(v)?v.join(', '):(v&&v.url?v.name||v.url:v))}</div>`).join('')}</td><td><button class="btn danger small" data-delete-response="${r.id}">Hapus</button></td></tr>`).join('');$('#responseTable').innerHTML=`<table class="table"><thead><tr><th>Waktu</th><th>Responden</th><th>Jawaban</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`}
+async function loadResults(){
+  const sid=$('#resultFormSelect').value;
+  if(!sid){
+    results=null;
+    $('#resultSummary').innerHTML='';
+    $('#responseTable').innerHTML='';
+    return;
+  }
+
+  results=await voice('admin.getResults',{surveyId:sid});
+
+  // Ringkasan
+  const summary=results.summary||[];
+
+  $('#resultSummary').innerHTML=
+    summary.map((s,i)=>{
+      if(!s.options){
+        return `
+          <div class="chart-card">
+            <h4>${i+1}. ${esc(s.question)}</h4>
+            <div class="mut">${s.answerCount||0} jawaban teks</div>
+          </div>`;
+      }
+
+      const max=Math.max(
+        1,
+        ...s.options.map(o=>Number(o.count||0))
+      );
+
+      return `
+        <div class="chart-card">
+          <h4>${i+1}. ${esc(s.question)}</h4>
+          ${s.options.map(o=>`
+            <div class="bar-row">
+              <span>${esc(o.label)}</span>
+              <div class="bar-track">
+                <div class="bar-fill"
+                     style="width:${Math.round(Number(o.count||0)/max*100)}%">
+                </div>
+              </div>
+              <b>${o.count}</b>
+            </div>
+          `).join('')}
+        </div>`;
+    }).join('')
+    || '<span class="mut">Belum ada data.</span>';
+
+  // Pertanyaan sudah datang dari backend dalam urutan sortOrder
+  const qs=results.questions||[];
+
+  function answerHtml(v){
+    if(v===undefined || v===null || v==='') return '-';
+
+    if(Array.isArray(v)){
+      return esc(v.join(', '));
+    }
+
+    if(typeof v==='object' && v.url){
+      return `
+        <a href="${esc(v.url)}"
+           target="_blank"
+           rel="noopener">
+           📎 ${esc(v.name||'Buka berkas')}
+        </a>`;
+    }
+
+    return esc(String(v));
+  }
+
+  // Setiap pertanyaan menjadi satu kolom.
+  const rows=(results.responses||[]).map(r=>{
+
+    const questionCells=qs.map(q=>{
+      const value=(r.answers||{})[q.id];
+
+      return `
+        <td class="answer-cell">
+          ${answerHtml(value)}
+        </td>`;
+    }).join('');
+
+    return `
+      <tr>
+        <td>${esc(r.timestamp)}</td>
+        <td>
+          <b>${esc(r.respondentName||'Anonim')}</b>
+        </td>
+        <td>${esc(r.respondentEmail||'-')}</td>
+        <td>${esc(r.respondentWA||'-')}</td>
+        <td>${esc(r.respondentInstitution||'-')}</td>
+        ${questionCells}
+        <td>
+          <button
+            class="btn danger small"
+            data-delete-response="${r.id}">
+            Hapus
+          </button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  // Header mengikuti URUTAN pertanyaan
+  const questionHeaders=qs.map((q,i)=>`
+    <th>
+      ${i+1}. ${esc(q.text)}
+    </th>
+  `).join('');
+
+  $('#responseTable').innerHTML=`
+    <div style="overflow-x:auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>Nama</th>
+            <th>Email</th>
+            <th>WhatsApp</th>
+            <th>Instansi</th>
+            ${questionHeaders}
+            <th>Aksi</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            rows ||
+            `<tr>
+              <td colspan="${6+qs.length}" class="mut">
+                Belum ada respons.
+              </td>
+            </tr>`
+          }
+        </tbody>
+      </table>
+    </div>`;
+}
 function exportCsv(){if(!results)return;const qs=results.questions||[],head=['Waktu','Nama','Email','WA','Instansi',...qs.map(q=>q.text)],lines=[head];(results.responses||[]).forEach(r=>lines.push([r.timestamp,r.respondentName||'',r.respondentEmail||'',r.respondentWA||'',r.respondentInstitution||'',...qs.map(q=>{const v=(r.answers||{})[q.id];return Array.isArray(v)?v.join(' | '):(v&&v.url?v.url:v||'')})]));const csv=lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='being-formulir-respons.csv';a.click();URL.revokeObjectURL(a.href)}
 async function simpleBang(action,data,msg){if(msg&&!confirm(msg))return;try{const x=await bangPost(action,data);alert(x.message||'Berhasil');await refreshAll()}catch(e){alert(e.message)}}
 document.addEventListener('click',async e=>{const panel=e.target.closest('[data-panel]');if(panel)return showPanel(panel.dataset.panel);if(e.target.id==='logoutBtn')return logout();if(e.target.id==='refreshBtn')return refreshAll();if(e.target.id==='newFormBtn')return openFormModal(null);if(e.target.id==='closeFormModal'||e.target.id==='cancelFormModal')return closeFormModal();const edit=e.target.closest('[data-edit-form]');if(edit)return openFormModal(forms.find(x=>x.id===edit.dataset.editForm));const res=e.target.closest('[data-form-results]');if(res){showPanel('results');$('#resultFormSelect').value=res.dataset.formResults;return loadResults()}const share=e.target.closest('[data-share-form]');if(share){const f=forms.find(x=>x.id===share.dataset.shareForm);let url=new URL(cfg.PUBLIC_VOICE_URL||'suara-anda.html',location.href);url.searchParams.set('survey',f.id);if(f.accessMode==='link'&&f.shareKey)url.searchParams.set('key',f.shareKey);if(f.accessMode==='code'&&f.accessCode)url.searchParams.set('code',f.accessCode);await navigator.clipboard.writeText(url.toString());return alert('Link formulir disalin.')}const df=e.target.closest('[data-delete-form]');if(df&&confirm('Hapus formulir ini beserta seluruh pertanyaan dan responsnya?')){await voice('admin.deleteSurvey',{surveyId:df.dataset.deleteForm});return refreshAll()}const ep=e.target.closest('[data-edit-program]');if(ep)return editProgram(ep.dataset.editProgram);const tq=e.target.closest('[data-toggle-program]');if(tq)return simpleBang('setProgramStatus',{programId:tq.dataset.toggleProgram,status:tq.dataset.status});const dp=e.target.closest('[data-delete-program]');if(dp)return simpleBang('deleteProgram',{programId:dp.dataset.deleteProgram},'Hapus program ini? Program hanya dapat dihapus bila tidak memiliki peserta, materi, sesi, atau pembayaran.');const dpt=e.target.closest('[data-delete-participant]');if(dpt)return simpleBang('deleteParticipant',{pesertaId:dpt.dataset.deleteParticipant},'Hapus peserta ini? Riwayat pembayaran peserta tersebut juga akan dihapus.');const dpay=e.target.closest('[data-delete-payment]');if(dpay)return simpleBang('deletePayment',{paymentId:dpay.dataset.deletePayment},'Hapus riwayat pembayaran ini?');const dc=e.target.closest('[data-delete-contact]');if(dc)return simpleBang('deleteContact',{contactId:dc.dataset.deleteContact},'Hapus kontak dari Database Kontak? Data sumber seperti peserta/formulir tidak ikut terhapus.');const ap=e.target.closest('[data-approve]');if(ap)return simpleBang('approvePayment',{paymentId:ap.dataset.approve},'Approve pembayaran dan aktifkan peserta?');const rp=e.target.closest('[data-reject]');if(rp)return simpleBang('rejectPayment',{paymentId:rp.dataset.reject,note:prompt('Catatan penolakan:','Bukti belum dapat diverifikasi.')||''});const cp=e.target.closest('[data-copy]');if(cp){await navigator.clipboard.writeText(cp.dataset.copy);return alert('Link disalin.')}const ms=e.target.closest('[data-material-status]');if(ms)return simpleBang('setMaterialStatus',{materiId:ms.dataset.materialStatus,status:ms.dataset.status});const ss=e.target.closest('[data-session-status]');if(ss)return simpleBang('setSessionStatus',{sesiId:ss.dataset.sessionStatus,status:ss.dataset.status});const zz=e.target.closest('[data-zoom]');if(zz)return simpleBang('toggleSessionZoom',{sesiId:zz.dataset.zoom,zoomAktif:zz.dataset.on==='true'?'YA':'TIDAK'});const em=e.target.closest('[data-edit-material]');if(em)return editMaterial(em.dataset.editMaterial);const dm=e.target.closest('[data-delete-material]');if(dm)return simpleBang('deleteMaterial',{materiId:dm.dataset.deleteMaterial},'Hapus materi ini?');const es=e.target.closest('[data-edit-session]');if(es)return editSession(es.dataset.editSession);const ds=e.target.closest('[data-delete-session]');if(ds)return simpleBang('deleteSession',{sesiId:ds.dataset.deleteSession},'Hapus sesi ini? Materi yang terhubung akan tetap ada sebagai Materi Umum.');const dr=e.target.closest('[data-delete-response]');if(dr&&confirm('Hapus respons individual ini?')){await voice('admin.deleteResponse',{responseId:dr.dataset.deleteResponse});return loadResults()}const eq=e.target.closest('[data-edit-q]');if(eq){const q=questions.find(x=>x.id===eq.dataset.editQ);$('#questionId').value=q.id;$('#questionText').value=q.text;$('#questionType').value=q.type;$('#questionRequired').checked=!!q.required;$('#questionOptions').value=(q.options||[]).join('\n');questionTypeChanged();return}const dq=e.target.closest('[data-del-q]');if(dq&&confirm('Hapus pertanyaan ini?')){await voice('admin.deleteQuestion',{questionId:dq.dataset.delQ});return loadQuestions()}});
