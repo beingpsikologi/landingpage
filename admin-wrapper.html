@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1">
+
+<title>BEING Admin</title>
+
+<style>
+
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#f3f7f5;
+}
+
+.wrapper{
+  position:relative;
+  width:100%;
+  height:100vh;
+  overflow:hidden;
+}
+
+/*
+  Banner Google Apps Script dipotong
+  dari bagian atas iframe.
+*/
+:root{
+  --gas-crop:58px;
+}
+
+.frame{
+  position:absolute;
+
+  top:calc(var(--gas-crop) * -1);
+  left:0;
+
+  width:100%;
+
+  height:calc(100vh + var(--gas-crop));
+
+  border:0;
+
+  background:#f3f7f5;
+}
+
+.loading{
+  position:absolute;
+  inset:0;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background:#f3f7f5;
+
+  color:#15594c;
+
+  font-family:Arial,sans-serif;
+  font-weight:700;
+
+  z-index:-1;
+}
+
+@media(max-width:600px){
+
+  :root{
+    --gas-crop:58px;
+  }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+  <div class="loading">
+    Membuka BEING Admin…
+  </div>
+
+  <iframe
+    class="frame"
+    src="https://script.google.com/macros/s/AKfycbwhFOhUZI3c9UAgdUulYDCsyktPBPf6gUV0nqClMyCkB_eHHQZGoGvb1jrkMvzCl7Jx/exec"
+    title="BEING Admin"
+    allow="clipboard-read; clipboard-write"
+    referrerpolicy="strict-origin-when-cross-origin">
+  </iframe>
+
+</div>
+
+</body>
+</html>
